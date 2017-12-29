@@ -5,7 +5,7 @@ module Graph (
     Path,
     Graph,
     AdjacencyList,
-    dijkstra,
+    getShortestPath,
     vertices,
     plus,
     existsEdge,
@@ -40,13 +40,15 @@ data Graph v w =
         adjacencyList :: AdjacencyList v w
     } deriving (Show, Eq)
 
+getShortestPath :: (Ev v, Ord v, Num w, Ord w) => Graph v w -> Vertex v -> Vertex v -> Maybe (Path v w)
+getShortestPath = dijkstra 
 
 -- Dijkstra's algorithm (Anthony's implementation)
 dijkstra :: (Eq v, Ord v, Num w, Ord w) => Graph v w -> Vertex v -> Vertex v -> Maybe (Path v w)
 dijkstra graph a b = helper (initPaths a graph) [a]
     where helper shortestPaths visited 
             | a /= b && (not (b `elem` (concatMap (\(v, e) -> map end e) (adjacencyList graph)))) = Nothing
-            | (last visited) == b = Just (getShortestPath b shortestPaths)
+            | (last visited) == b = Just (shortestDijkstraPath b shortestPaths)
             | otherwise = helper newShortestPaths newVisited
                 where newShortestPaths = map (updatePath graph visited shortestPaths) shortestPaths
                       newVisited = visited ++ [fst $ argmin (distance . snd) (filter (\(v, p) -> (not (v `elem` visited))) newShortestPaths)]
@@ -60,7 +62,7 @@ updatePath graph visited shortestPaths (v, p) = if (not (v `elem` visited)) && (
     where lastV = last visited
           adjList = adjacencyList graph
           currentWeight = edgeWeight v lastV adjList
-          lastVPath = getShortestPath lastV shortestPaths
+          lastVPath = shortestDijkstraPath lastV shortestPaths
 
 -- "Infinity" used for dijkstra's initial distance to vertex and potential
 -- unreachable vertices.
@@ -77,8 +79,8 @@ plus :: (Num a) => Weight a -> Weight a -> Weight a
 
 -- Returns the accumulated shortest path to the end vertex, calculated by the
 -- current call to the dijkstra algorithm.
-getShortestPath :: (Eq v) => Vertex v -> [(Vertex v, Path v w)] -> Path v w
-getShortestPath v shortestPaths = snd $ head $ filter (\(vertex, _) -> vertex == v) shortestPaths
+shortestDijkstraPath :: (Eq v) => Vertex v -> [(Vertex v, Path v w)] -> Path v w
+shortestDijkstraPath v shortestPaths = snd $ head $ filter (\(vertex, _) -> vertex == v) shortestPaths
 
 -- Returns the weight of the edge (u, v), using a graphs adjacency list.
 -- TODO fix function parameter ordering (как му беше думата на английски?)
