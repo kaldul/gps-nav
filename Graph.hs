@@ -3,44 +3,33 @@ module Graph where
 import Data.List
 import Data.Ord
 
-data Vertex = Vertex Integer deriving (Show, Ord, Eq)
+data Vertex a = Vertex a deriving (Show, Ord, Eq)
 
--- TODO Change noncomprehensible w.
-data Weight = 
-    Weight {
-        w :: Integer
-    } deriving (Show, Ord, Eq)
+data Weight a = Weight a deriving (Show, Ord, Eq)
 
-data Edge = 
+data Edge v w = 
     Edge { 
-        weight :: Weight, 
-        begin :: Vertex, 
-        end :: Vertex 
-    } deriving (Show, Ord, Eq)
+        weight :: Weight w, 
+        begin :: Vertex v, 
+        end :: Vertex v 
+    } deriving (Show, Eq)
 
-data Path = 
+data Path v w = 
     Path { 
-        path :: [Vertex], 
-        distance :: Integer 
+        path :: [Vertex v], 
+        distance :: Weight w 
     } deriving (Show, Ord, Eq)
 
 -- Adjacency List Graph Representation
-type AdjacencyList = [(Vertex, [Edge])]
-data Graph = 
+type AdjacencyList v w = [(Vertex v, [Edge v w])]
+data Graph v w = 
     Graph { 
-        adjacencyList :: AdjacencyList 
-    } deriving (Show, Ord, Eq)
+        adjacencyList :: AdjacencyList v w
+    } deriving (Show, Eq)
 
--- "Infinity" used for dijkstra's initial distance to vertex and potential
--- unreachable vertices.
-infinity = 9223372036854775807
-
--- Returns all vertices of a given graph.
-vertices :: Graph -> [Vertex]
-vertices graph = map fst $ adjacencyList graph
 
 -- Dijkstra's algorithm (Anthony's implementation)
-dijkstra :: Graph -> Vertex -> Vertex -> Maybe Path
+dijkstra :: (Eq v, Ord v, Num w, Ord w) => Graph v w -> Vertex v -> Vertex v -> Maybe (Path v w)
 dijkstra graph a b = helper (initPaths a graph) [a]
     where helper shortestPaths visited 
             | a /= b && (not (b `elem` (concatMap (\(v, e) -> map end e) (adjacencyList graph)))) = Nothing
@@ -51,41 +40,54 @@ dijkstra graph a b = helper (initPaths a graph) [a]
 
 -- Updates a single ShortestPath path. It either uses a newly found shorter
 -- path or leaves the previously found shortest path.
-updatePath :: Graph -> [Vertex] -> [(Vertex, Path)] -> (Vertex, Path) -> (Vertex, Path)
-updatePath graph visited shortestPaths (v, p) = if (not (v `elem` visited)) && (isAdjacent v lastV adjList) && ((distance lastVPath) + currentWeight < (distance p)) 
-                                                then (v, (Path ((path lastVPath) ++ [v]) ((distance lastVPath) + currentWeight))) 
+updatePath :: (Eq v, Num w, Ord w) => Graph v w -> [Vertex v] -> [(Vertex v, Path v w)] -> (Vertex v, Path v w) -> (Vertex v, Path v w)
+updatePath graph visited shortestPaths (v, p) = if (not (v `elem` visited)) && (isAdjacent v lastV adjList) && ((distance lastVPath) `addWeight` currentWeight < (distance p)) 
+                                                then (v, (Path ((path lastVPath) ++ [v]) ((distance lastVPath) `addWeight` currentWeight))) 
                                                 else (v, p)
     where lastV = last visited
           adjList = adjacencyList graph
           currentWeight = getWeightOfEdge v lastV adjList
           lastVPath = getShortestPath lastV shortestPaths
 
+-- "Infinity" used for dijkstra's initial distance to vertex and potential
+-- unreachable vertices.
+infinity :: (Num w) => Weight w
+infinity = Weight (fromIntegral 9223372036854775807)
+
+-- Returns all vertices of a given graph.
+vertices :: Graph v w -> [Vertex v]
+vertices graph = map fst $ adjacencyList graph
+
+-- Adds weights together.
+addWeight :: (Num a) => Weight a -> Weight a -> Weight a
+(Weight first) `addWeight` (Weight second) = Weight (first + second)
+
 -- Returns the accumulated shortest path to the end vertex, calculated by the
 -- current call to the dijkstra algorithm.
-getShortestPath :: Vertex -> [(Vertex, Path)] -> Path
+getShortestPath :: (Eq v) => Vertex v -> [(Vertex v, Path v w)] -> Path v w
 getShortestPath v shortestPaths = snd $ head $ filter (\(vertex, _) -> vertex == v) shortestPaths
 
 -- Returns the weight of the edge (u, v), using a graphs adjacency list.
 -- TODO fix function parameter ordering (как му беше думата на английски?)
-getWeightOfEdge :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Integer
-getWeightOfEdge v u adjList = if null getAdjacentVertex then 0 else w $ weight $ head $ getAdjacentVertex 
+getWeightOfEdge :: (Eq v, Num w) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Weight w
+getWeightOfEdge v u adjList = if null getAdjacentVertex then (Weight 0) else weight $ head $ getAdjacentVertex 
     where getAdjacentVertex = filter (\(Edge _ _ vertex) -> vertex == v) $ getAdjacent u adjList
 
 -- Checks whether there is an edge (u, v).
-isAdjacent :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Bool
+isAdjacent :: (Eq v) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Bool
 isAdjacent v u adjList = v `elem` (map end (getAdjacent u adjList))
 
 -- Gets all the edges that have a beggining vertex v.
 -- e.g. (v, v0), (v, v1), ... ,(v, vn)
-getAdjacent :: Vertex -> [(Vertex, [Edge])] -> [Edge]
+getAdjacent :: (Eq v) => Vertex v -> [(Vertex v, [Edge v w])] -> [Edge v w]
 getAdjacent v adjList = snd $ head $ filter (\(vertex, p) -> vertex == v) adjList
 
 -- Gets the initial "Paths" used to store the state of the dijkstra algorithm.
 -- The paths contain information that describes the current shortest path to
 -- each vertex from the initial vertex. The initial vertex has a trivial path
 -- and distance zero to itself.
-initPaths :: Vertex -> Graph -> [(Vertex, Path)]
-initPaths initVert graph = [(initVert, Path [initVert] 0)] ++ (map (\v -> (v, Path [] infinity)) $ delete initVert $ vertices graph)
+initPaths :: (Eq v, Num w) => Vertex v -> Graph v w -> [(Vertex v, Path v w)]
+initPaths initVert graph = [(initVert, Path [initVert] (Weight 0))] ++ (map (\v -> (v, Path [] infinity)) $ delete initVert $ vertices graph)
 
 -- Returns the element of the list that minimizes the function f(x), where x is in the list.
 argmin :: (Ord a, Ord b) => (a -> b) -> [a] -> a
@@ -181,5 +183,5 @@ loadGraph = Graph [
 
 -- TODO Used for testing (remove later)
 main = do
-    print $ initPaths (Vertex 1) loadGraph
+    -- print $ initPaths (Vertex 1) loadGraph
     print $ dijkstra loadGraph (Vertex 1) (Vertex 8)
