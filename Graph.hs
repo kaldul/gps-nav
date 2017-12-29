@@ -40,7 +40,7 @@ data Graph v w =
         adjacencyList :: AdjacencyList v w
     } deriving (Show, Eq)
 
-getShortestPath :: (Ev v, Ord v, Num w, Ord w) => Graph v w -> Vertex v -> Vertex v -> Maybe (Path v w)
+getShortestPath :: (Eq v, Ord v, Num w, Ord w) => Graph v w -> Vertex v -> Vertex v -> Maybe (Path v w)
 getShortestPath = dijkstra 
 
 -- Dijkstra's algorithm (Anthony's implementation)
@@ -174,7 +174,7 @@ argmin f = minimumBy (comparing f)
 
 
 -- This is the graph from this video https://www.youtube.com/watch?v=8Ls1RqHCOPw&t=17s
-loadGraph1 = Graph [
+loadGraph = Graph [
     (Vertex 'A', [
         (Edge (Weight 20) (Vertex 'A') (Vertex 'B')),
         (Edge (Weight 80) (Vertex 'A') (Vertex 'D')),
@@ -199,32 +199,6 @@ loadGraph1 = Graph [
     (Vertex 'H', [])
     ]
 
-loadGraph2 = Graph [
-    (Vertex 'A', [
-        (Edge (Weight 20.0) (Vertex 'A') (Vertex 'B')),
-        (Edge (Weight 80.0) (Vertex 'A') (Vertex 'D')),
-        (Edge (Weight 90.0) (Vertex 'A') (Vertex 'G'))]),
-    (Vertex 'B', [
-        (Edge (Weight 10.0) (Vertex 'B') (Vertex 'F'))]),
-    (Vertex 'C', [
-        (Edge (Weight 20.0) (Vertex 'C') (Vertex 'H')),
-        (Edge (Weight 50.0) (Vertex 'C') (Vertex 'F')),
-        (Edge (Weight 10.0) (Vertex 'C') (Vertex 'D'))]),
-    (Vertex 'D', [
-        (Edge (Weight 10.0) (Vertex 'D') (Vertex 'C')),
-        (Edge (Weight 20.0) (Vertex 'D') (Vertex 'G'))]),
-    (Vertex 'E', [
-        (Edge (Weight 30.0) (Vertex 'E') (Vertex 'G')),
-        (Edge (Weight 50.0) (Vertex 'E') (Vertex 'B'))]),
-    (Vertex 'F', [
-        (Edge (Weight 10.0) (Vertex 'F') (Vertex 'C')),
-        (Edge (Weight 40.0) (Vertex 'F') (Vertex 'D'))]),
-    (Vertex 'G', [
-        (Edge (Weight 20.0) (Vertex 'G') (Vertex 'A'))]),
-    (Vertex 'H', [])
-    ]
-
 -- TODO Used for testing (remove later)
 main = do
-     -- print $ dijkstra loadGraph1 (Vertex 1) (Vertex 8)
-     print $ dijkstra loadGraph2 (Vertex 'A') (Vertex 'H')
+     print $ dijkstra loadGraph (Vertex 'A') (Vertex 'H')
