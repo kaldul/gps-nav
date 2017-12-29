@@ -1,14 +1,35 @@
 module Graph where
+
 import Data.List
 import Data.Ord
 
 data Vertex = Vertex Integer deriving (Show, Ord, Eq)
-data Weight = Weight {w :: Integer} deriving (Show, Ord, Eq)
-data Edge = Edge { weight :: Weight, begin :: Vertex, end :: Vertex } deriving (Show, Ord, Eq)
-data Path = Path { path :: [Vertex], distance :: Integer } deriving (Show, Ord, Eq)
+
+-- TODO Change noncomprehensible w.
+data Weight = 
+    Weight {
+        w :: Integer
+    } deriving (Show, Ord, Eq)
+
+data Edge = 
+    Edge { 
+        weight :: Weight, 
+        begin :: Vertex, 
+        end :: Vertex 
+    } deriving (Show, Ord, Eq)
+
+data Path = 
+    Path { 
+        path :: [Vertex], 
+        distance :: Integer 
+    } deriving (Show, Ord, Eq)
 
 -- Adjacency List Graph Representation
-data Graph = Graph { adjacencyList :: [(Vertex, [Edge])] } deriving (Show, Ord, Eq)
+type AdjacencyList = [(Vertex, [Edge])]
+data Graph = 
+    Graph { 
+        adjacencyList :: AdjacencyList 
+    } deriving (Show, Ord, Eq)
 
 -- "Infinity" used for dijkstra's initial distance to vertex and potential
 -- unreachable vertices.
@@ -159,6 +180,6 @@ loadGraph = Graph [
     ]
 
 -- TODO Used for testing (remove later)
--- main = do
---     print $ initPaths (Vertex 1) loadGraph
---     print $ dijkstra loadGraph (Vertex 1) (Vertex 8)
+main = do
+    print $ initPaths (Vertex 1) loadGraph
+    print $ dijkstra loadGraph (Vertex 1) (Vertex 8)
