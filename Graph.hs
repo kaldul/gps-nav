@@ -18,42 +18,101 @@ vertices graph = map fst $ adjacencyList graph
 edges :: Graph -> [Edge]
 edges graph = nub $ concatMap snd $ adjacencyList graph
 
+-- TODO Check unreachable path
 dijkstra :: Graph -> Vertex -> Vertex -> Path
-dijkstra graph a b = helper [a] (initPaths a graph) 0
-    where helper visited shortestPaths totalDistance 
-            | (last visited) == b = Path visited totalDistance
-            | otherwise = helper newVisited newShortestPaths newTotalDistance
-                where newShortestPaths = map (updatePath graph visited totalDistance) shortestPaths
-                      newVisited = visited ++ [fst $ argmin (distance . snd) newShortestPaths]
-                      newTotalDistance = totalDistance + (getWeightOfEdge (last newVisited) (last visited) (adjacencyList graph))
+dijkstra graph a b = helper [a] (getInitDistances a graph) (getInitPrevVertices graph)
+  where helper visited distances prevVertices
+          | (last visited) == b = getResultPath a b prevVertices distances
+          | otherwise =
+              let adjacentList = map (\(v, edgeList) -> (v, map end edgeList)) $ adjacencyList graph
+                  verticesList = map fst adjacentList
+                  current = last visited
+                  currentDistance = lookup current distances
+                  adjacentNeighbors = lookup current adjacentList
+                  edgeWeight v1 v2 = getEdgeWeight graph v1 v2
+                  withShorterDistances = filter (\v -> lookup v distances >= --TODO Make readable
+                                                       (currentDistance + (edgeWeight current v)))
+                                                adjacentNeighbors
+                  updatedDistances = map (\(v, d) -> if v `elem` withShorterDistances
+                                                     then (v, currentDistance + (edgeWeight current v))
+                                                     else (v, d))
+                                         distances
+                  updatedPrevVertices = map (\(v, p) -> if v `elem` withShorterDistances
+                                                        then (v, current)
+                                                        else (v, p))
+                                            prevVertices
+                  distancesUnvisited = filter (\(v, d) -> not $ v `elem` visited) distances
+                  unvisitedWithSmallestDistance = fst $ argmin snd $ distancesUnvisited
+                  updatedVisited = visited ++ unvisitedWithSmallestDistance
+              in helper updatedVisited updatedDistances updatedPrevVertices
 
--- updates a single ShortestPath path 
-updatePath :: Graph -> [Vertex] -> Integer -> (Vertex, Path) -> (Vertex, Path)
-updatePath graph visited totalDistance (v, p) = if (isAdjacent v lastV adjList) && (totalDistance + currentWeight <= (distance p)) 
-                                                then (v, (Path (visited ++ [v]) (totalDistance + currentWeight))) 
-                                                else (v, p)
-    where lastV = last visited
-          adjList = adjacencyList graph
-          currentWeight = getWeightOfEdge v lastV adjList
-
-
--- returns weight of edge connecting u to v
-getWeightOfEdge :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Integer
-getWeightOfEdge v u adjList = w $ weight $ head $ filter (\(Edge _ _ vertex) -> vertex == v) $ getAdjacent u adjList
-
--- if v is adjacent to u
-isAdjacent :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Bool
-isAdjacent v u adjList = v `elem` (map end (getAdjacent u adjList))
-
--- get all edges adjacent to v
-getAdjacent :: Vertex -> [(Vertex, [Edge])] -> [Edge]
-getAdjacent v adjList = snd $ head $ filter (\(vertex, p) -> vertex == v) adjList
-
-initPaths :: Vertex -> Graph -> [(Vertex, Path)]
-initPaths initVert graph = map (\v -> (v, Path [v] (-1))) $ delete initVert $ vertices graph
-
+-- Returns the element of the list that minimizes the function f(x), where x is in the list.
 argmin :: (Ord a, Ord b) => (a -> b) -> [a] -> a
 argmin f = minimumBy (comparing f)
+
+-- Returns а "vertex -> distance to zeroth vertex" map that is used by the dijkstra
+-- pathfinding algorithm. The initial distance values are all infinity except for
+-- the zeroVertex which has a distance to itself equal to 0.
+-- Example: [(zeroVertex, 0), (v1, infinity), ... ,(vn, infinity)]
+getInitDistances zeroVertex graph = map (\v -> if v == zeroVertex
+                                               then (v, 0)
+                                               else (v, infinity)) $
+                                        vertices graph
+
+-- Returns an initial "vertex -> previous vertex" map with that is used by the dijkstra
+-- algorithm. All the vertices point to themselves i.e. if the map has a key that is
+-- the vertex A, then that key points to the vertex value A.
+getInitPrevVertices graph = map (\v -> (v, v)) $ vertices graph
+
+-- Returns a graph path from the beginVertex to the endVertex by using a
+-- (vertex -> previous vertex) map, generated by the dijkstra algorithm.
+getResultPath beginVertex endVertex prevVertices distances = helper [] 0 endVertex
+  where helper path sumDistance currentVertex
+          | currentVertex == beginVertex = Path { path=path, distance=sumDistance }
+          | helper ([lookup current prevVertices] ++ path)  -- TODO само дистанция на последното
+                   ((lookup current distances) + sumDistance)
+                   (lookup current prevVertices)
+
+-- Returns the weight of the edge (v1, v2) in a given graph.
+-- TODO FIX w $
+getEdgeWeight graph v1 v2 = w $ weight $ find (\e -> (begin e) == v1 && (end e) == v2) 
+                                              (edges graph)
+
+
+-- dijkstra :: Graph -> Vertex -> Vertex -> Path
+-- dijkstra graph a b = helper [a] (initPaths a graph) 0
+--     where helper visited shortestPaths totalDistance 
+--             | (last visited) == b = Path visited totalDistance
+--             | otherwise = helper newVisited newShortestPaths newTotalDistance
+--                 where newShortestPaths = map (updatePath graph visited totalDistance) shortestPaths
+--                       newVisited = visited ++ [fst $ argmin (distance . snd) newShortestPaths]
+--                       newTotalDistance = totalDistance + (getWeightOfEdge (last newVisited) (last visited) (adjacencyList graph))
+-- 
+-- -- updates a single ShortestPath path 
+-- updatePath :: Graph -> [Vertex] -> Integer -> (Vertex, Path) -> (Vertex, Path)
+-- updatePath graph visited totalDistance (v, p) = if (isAdjacent v lastV adjList) && (totalDistance + currentWeight <= (distance p)) 
+--                                                 then (v, (Path (visited ++ [v]) (totalDistance + currentWeight))) 
+--                                                 else (v, p)
+--     where lastV = last visited
+--           adjList = adjacencyList graph
+--           currentWeight = getWeightOfEdge v lastV adjList
+-- 
+-- 
+-- -- returns weight of edge connecting u to v
+-- getWeightOfEdge :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Integer
+-- getWeightOfEdge v u adjList = w $ weight $ head $ filter (\(Edge _ _ vertex) -> vertex == v) $ getAdjacent u adjList
+-- 
+-- -- if v is adjacent to u
+-- isAdjacent :: Vertex -> Vertex -> [(Vertex, [Edge])] -> Bool
+-- isAdjacent v u adjList = v `elem` (map end (getAdjacent u adjList))
+-- 
+-- -- get all edges adjacent to v
+-- getAdjacent :: Vertex -> [(Vertex, [Edge])] -> [Edge]
+-- getAdjacent v adjList = snd $ head $ filter (\(vertex, p) -> vertex == v) adjList
+-- 
+-- initPaths :: Vertex -> Graph -> [(Vertex, Path)]
+-- initPaths initVert graph = map (\v -> (v, Path [v] (-1))) $ delete initVert $ vertices graph
+
 
 loadGraph = Graph [
     (Vertex 1, [
@@ -66,8 +125,6 @@ loadGraph = Graph [
     (Vertex 3, [
         (Edge (Weight 1) (Vertex 3) (Vertex 0))])
     ]
-
-
 
 main = do
     -- so far my only working example :(
