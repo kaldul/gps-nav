@@ -1,4 +1,17 @@
-module Graph where
+module Graph (
+    Vertex,
+    Weight,
+    Edge,
+    Path,
+    Graph,
+    AdjacencyList,
+    dijkstra,
+    vertices,
+    plus,
+    existsEdge,
+    edgesFromVertex,
+    edgeWeight
+) where
 
 import Data.List
 import Data.Ord
@@ -41,12 +54,12 @@ dijkstra graph a b = helper (initPaths a graph) [a]
 -- Updates a single ShortestPath path. It either uses a newly found shorter
 -- path or leaves the previously found shortest path.
 updatePath :: (Eq v, Num w, Ord w) => Graph v w -> [Vertex v] -> [(Vertex v, Path v w)] -> (Vertex v, Path v w) -> (Vertex v, Path v w)
-updatePath graph visited shortestPaths (v, p) = if (not (v `elem` visited)) && (isAdjacent v lastV adjList) && ((distance lastVPath) `addWeight` currentWeight < (distance p)) 
-                                                then (v, (Path ((path lastVPath) ++ [v]) ((distance lastVPath) `addWeight` currentWeight))) 
+updatePath graph visited shortestPaths (v, p) = if (not (v `elem` visited)) && (existsEdge v lastV adjList) && ((distance lastVPath) `plus` currentWeight < (distance p)) 
+                                                then (v, (Path ((path lastVPath) ++ [v]) ((distance lastVPath) `plus` currentWeight))) 
                                                 else (v, p)
     where lastV = last visited
           adjList = adjacencyList graph
-          currentWeight = getWeightOfEdge v lastV adjList
+          currentWeight = edgeWeight v lastV adjList
           lastVPath = getShortestPath lastV shortestPaths
 
 -- "Infinity" used for dijkstra's initial distance to vertex and potential
@@ -59,8 +72,8 @@ vertices :: Graph v w -> [Vertex v]
 vertices graph = map fst $ adjacencyList graph
 
 -- Adds weights together.
-addWeight :: (Num a) => Weight a -> Weight a -> Weight a
-(Weight first) `addWeight` (Weight second) = Weight (first + second)
+plus :: (Num a) => Weight a -> Weight a -> Weight a
+(Weight first) `plus` (Weight second) = Weight (first + second)
 
 -- Returns the accumulated shortest path to the end vertex, calculated by the
 -- current call to the dijkstra algorithm.
@@ -69,18 +82,21 @@ getShortestPath v shortestPaths = snd $ head $ filter (\(vertex, _) -> vertex ==
 
 -- Returns the weight of the edge (u, v), using a graphs adjacency list.
 -- TODO fix function parameter ordering (как му беше думата на английски?)
-getWeightOfEdge :: (Eq v, Num w) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Weight w
-getWeightOfEdge v u adjList = if null getAdjacentVertex then (Weight 0) else weight $ head $ getAdjacentVertex 
+edgeWeight :: (Eq v, Num w) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Weight w
+edgeWeight v u adjList = if null getAdjacentVertex then (Weight 0) else weight $ head $ getAdjacentVertex 
     where getAdjacentVertex = filter (\(Edge _ _ vertex) -> vertex == v) $ getAdjacent u adjList
 
 -- Checks whether there is an edge (u, v).
-isAdjacent :: (Eq v) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Bool
-isAdjacent v u adjList = v `elem` (map end (getAdjacent u adjList))
+existsEdge :: (Eq v) => Vertex v -> Vertex v -> [(Vertex v, [Edge v w])] -> Bool
+existsEdge v u adjList = v `elem` (map end (getAdjacent u adjList))
 
 -- Gets all the edges that have a beggining vertex v.
 -- e.g. (v, v0), (v, v1), ... ,(v, vn)
 getAdjacent :: (Eq v) => Vertex v -> [(Vertex v, [Edge v w])] -> [Edge v w]
 getAdjacent v adjList = snd $ head $ filter (\(vertex, p) -> vertex == v) adjList
+
+edgesFromVertex :: (Eq v) => Vertex v -> Graph v w -> [Edge v w]
+edgesFromVertex v graph = getAdjacent v (adjacencyList graph)
 
 -- Gets the initial "Paths" used to store the state of the dijkstra algorithm.
 -- The paths contain information that describes the current shortest path to
@@ -207,6 +223,6 @@ loadGraph2 = Graph [
     ]
 
 -- TODO Used for testing (remove later)
--- main = do
---      print $ dijkstra loadGraph1 (Vertex 1) (Vertex 8)
---      print $ dijkstra loadGraph2 (Vertex 'A') (Vertex 'H')
+main = do
+     -- print $ dijkstra loadGraph1 (Vertex 1) (Vertex 8)
+     print $ dijkstra loadGraph2 (Vertex 'A') (Vertex 'H')
